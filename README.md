@@ -1,2 +1,0 @@
-# TalleresHmo
-Administracion interna
