@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Consulta de Requisiciones 2025</title>
+
+  <style>
+    body{
+      font-family: Arial, sans-serif;
+      background-color:#fdf6ec;
+      color:#333;
+      margin:0;
+      padding:0;
+    }
+    header{
+      background-color:#f57c00;
+      color:#fff;
+      padding:15px;
+      text-align:center;
+    }
+    .main-screen{
+      padding:20px;
+      text-align:center;
+    }
+    .filters{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:center;
+      gap:10px;
+      margin-bottom:10px;
+    }
+    input[type="text"]{
+      width:180px;
+      padding:8px;
+      border:1px solid #ccc;
+      border-radius:6px;
+    }
+    input[type="text"]:focus{
+      border-color:#f57c00;
+      outline:none;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:15px;
+      font-size:14px;
+    }
+    th, td{
+      border:1px solid #ddd;
+      padding:8px;
+      text-align:left;
+      vertical-align:top;
+    }
+    th{
+      background-color:#ffe0b2;
+    }
+    .hint{
+      font-size:12px;
+      color:#666;
+      margin-top:6px;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Consulta de Requisiciones y Compras 2025</h1>
+  </header>
+
+  <div class="main-screen">
+    <h2>Filtrar Información</h2>
+
+    <div class="filters">
+      <input type="text" id="filtroFecha" placeholder="Fecha" />
+      <input type="text" id="filtroRequisicion" placeholder="Requisición (REQ)" />
+      <input type="text" id="filtroOrden" placeholder="Orden de Compra" />
+      <input type="text" id="filtroDependencia" placeholder="Dependencia" />
+      <input type="text" id="filtroProveedor" placeholder="Proveedor" />
+      <input type="text" id="filtroNumero" placeholder="Número Económico" />
+      <input type="text" id="filtroPedido" placeholder="Pedido (Descripción breve)" />
+      <input type="text" id="filtroFactura" placeholder="Factura" />
+    </div>
+
+
+
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Requisición</th>
+          <th>Orden de Compra</th>
+          <th>Dependencia</th>
+          <th>Pedido</th>
+          <th>Status SIFF</th>
+          <th>Proveedor</th>
+          <th>Unidad</th>
+          <th>Descripción de Unidad</th>
+          <th>Monto</th>
+          <th>Factura</th>
+        </tr>
+      </thead>
+      <tbody id="dataTable"></tbody>
+    </table>
+  </div>
+
+  <script>
+    /********* CONFIG *********/
+    const apiKey  = 'AIzaSyDM8m9-bZM2stDAt1V0i-H-iStD0Vi6Z7k';
+    const sheetId = '1L6EsYC_PNp7lxjqTgVaGEFuXsINWBUsxWYsMzBAQ55Y';
+    const range   = 'Requis!A2:P';
+
+    const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`;
+
+    async function fetchData(){
+      try{
+        const response = await fetch(apiUrl);
+        const json = await response.json();
+        return json.values || [];
+      }catch(err){
+        console.error('Error al obtener datos:', err);
+        return [];
+      }
+    }
+
+    function renderTable(data){
+      const table = document.getElementById('dataTable');
+      table.innerHTML = '';
+
+      data.forEach(row => {
+        const tr = document.createElement('tr');
+
+        // Pedido = DESCRIPCIÓN BREVE (G)
+        const selectedColumns = [
+          row[0],   // Fecha (A)
+          row[2],   // REQ (C)
+          row[3],   // ORDEN (D)
+          row[5],   // DEPENDENCIA (F)
+          row[6],   // DESCRIPCIÓN BREVE (G) -> Pedido
+          row[7],   // STATUS SIFF (H)
+          row[9],   // PROOV (J)
+          row[10],  // UNIDAD (K)
+          row[11],  // DESC VEHICULO (L)
+          row[14],  // MONTO (O)
+          row[15]   // FACTURA (P)
+        ];
+
+        selectedColumns.forEach(cell => {
+          const td = document.createElement('td');
+          td.textContent = cell || '';
+          tr.appendChild(td);
+        });
+
+        table.appendChild(tr);
+      });
+    }
+
+    function applyFilters(data){
+      const fecha       = document.getElementById('filtroFecha').value.toLowerCase();
+      const requisicion = document.getElementById('filtroRequisicion').value.toLowerCase();
+      const orden       = document.getElementById('filtroOrden').value.toLowerCase();
+      const dependencia = document.getElementById('filtroDependencia').value.toLowerCase();
+      const proveedor   = document.getElementById('filtroProveedor').value.toLowerCase();
+      const numero      = document.getElementById('filtroNumero').value.toLowerCase();
+      const pedido      = document.getElementById('filtroPedido').value.toLowerCase();
+      const factura     = document.getElementById('filtroFactura').value.toLowerCase();
+
+      return data.filter(row =>
+        ((row[0]  || '').toLowerCase().includes(fecha)) &&
+        ((row[2]  || '').toLowerCase().includes(requisicion)) &&
+        ((row[3]  || '').toLowerCase().includes(orden)) &&
+        ((row[5]  || '').toLowerCase().includes(dependencia)) &&
+        ((row[9]  || '').toLowerCase().includes(proveedor)) &&
+        ((row[10] || '').toLowerCase().includes(numero)) &&
+        ((row[6]  || '').toLowerCase().includes(pedido)) &&   // DESCRIPCIÓN BREVE
+        ((row[15] || '').toLowerCase().includes(factura))
+      );
+    }
+
+    async function init(){
+      const allData = await fetchData();
+      renderTable(allData);
+
+      document.querySelectorAll('input[type="text"]').forEach(input => {
+        input.addEventListener('input', () => {
+          renderTable(applyFilters(allData));
+        });
+      });
+    }
+
+    init();
+  </script>
+</body>
+</html>
+
+
+
